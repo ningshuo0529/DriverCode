@@ -3,6 +3,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
+#include <asm/uaccess.h>
 #include "scull.h"
 
 int scull_major = SCULL_MAJOR;
@@ -21,21 +22,135 @@ struct scull_dev * scull_devices;
 struct file_operations scull_fops = {
     .owner = THIS_MODULE,
     //.llseek = scull_llseek,
-    //.read = scull_read,
-    //.write = scull_write,
+    .read = scull_read,
+    .write = scull_write,
     //.ioctl = scull_ioctl,
     .open = scull_open,
     .release = scull_release,
 };
 
+static struct scull_qset* scull_follow(struct scull_dev* dev, int item)
+{
+    struct scull_qset *qset = dev->data;
+    if (!qset)
+    {
+        qset = kmalloc(sizeof(struct scull_qset), GFP_KERNEL);
+        dev->data = qset;
+        if (!qset)
+            return NULL;
+        memset(qset, 0, sizeof(struct scull_qset));
+    }
+    while (item--)
+    {
+        if (!qset->next)
+        {
+            qset->next = kmalloc(sizeof(struct scull_qset), GFP_KERNEL);
+            if (!qset->next)
+                return NULL;
+            memset(qset->next, 0, sizeof(struct scull_qset));
+        }
+        qset = qset->next;
+    }
+    return qset;
+}
+
+ssize_t scull_write(struct file *filep, const char __user *buf, size_t count,loff_t *f_pos)
+{
+    struct scull_dev *dev = filep->private_data;
+    struct scull_qset *dptr;
+    int quantum = dev->quantum, qset= dev->qset;
+    int itemsize = quantum * qset;
+    int item, s_pos, q_pos, rest;
+
+    ssize_t retval = -ENOMEM;
+
+    //if (down_interruptible(&dev->sem))
+    //    return -ERESTARTSYS;
+    item = (long) *f_pos / itemsize;
+    rest = (long) *f_pos % itemsize;
+    s_pos = rest / quantum;
+    q_pos = rest % quantum;
+    dptr = scull_follow(dev, item);
+    if (dptr == NULL)
+        goto out;
+    if (!dptr->data)
+    {
+        dptr->data = kmalloc(qset * sizeof(char *), GFP_KERNEL);
+        if (!dptr->data)
+            goto out;
+        memset(dptr->data, 0, sizeof(char*) * qset);
+    }
+    if (!dptr->data[s_pos])
+    {
+        dptr->data[s_pos] = kmalloc(sizeof(char) * quantum, GFP_KERNEL);
+        if (!dptr->data[s_pos])
+            goto out;
+    }
+    if (count > quantum - q_pos)
+        count = quantum - q_pos;
+    if (copy_from_user(dptr->data[s_pos] + q_pos, buf, count))
+    {
+        retval = -EFAULT;
+        goto out;
+    }
+    *f_pos += count;
+    retval = count;
+    if (dev->size < *f_pos)
+        dev->size = *f_pos;
+    //printk(KERN_NOTICE "scull write %zd bytes", retval);
+out:
+    //up(&dev->sem);
+    return retval;
+}
+
+ssize_t scull_read(struct file *filep, char __user *buf, size_t count,loff_t *f_pos)
+{
+    struct scull_dev *dev = filep->private_data;
+    struct scull_qset *dptr;
+    int quantum = dev->quantum, qset= dev->qset;
+    int itemsize = quantum * qset;
+    int item, s_pos, q_pos, rest;
+
+    ssize_t retval = 0;
+
+    //if (down_interruptible(&dev->sem))
+    //    return -ERESTARTSYS;
+    if (*f_pos >= dev->size)
+        goto out;
+    if (*f_pos + count > dev->size)
+        count = dev->size - *f_pos;
+
+    item = (long) *f_pos / itemsize;
+    rest = (long) *f_pos % itemsize;
+    s_pos = rest / quantum;
+    q_pos = rest % quantum;
+    dptr = scull_follow(dev, item);
+    if (dptr == NULL || !dptr->data || !dptr->data[s_pos])
+        goto out;
+    if (count > quantum - q_pos)
+        count = quantum - q_pos;
+    if (copy_to_user(buf, dptr->data[s_pos] + q_pos, count))
+    {
+        retval = -EFAULT;
+        goto out;
+    }
+    *f_pos += count;
+    retval = count;
+    //printk(KERN_NOTICE "scull write %zd bytes", retval);
+out:
+    //up(&dev->sem);
+    return retval;
+}
 int scull_open(struct inode *inode, struct file *filp)
 {
     struct scull_dev *dev;
     dev = container_of(inode->i_cdev, struct scull_dev, cdev);
     filp->private_data = dev;
+    //printk(KERN_NOTICE "scull opened");
 
     if ((filp->f_flags & O_ACCMODE) == O_WRONLY)
     {
+        //printk(KERN_NOTICE "damn %u %u %u\n", filp->f_flags, O_WRONLY, O_ACCMODE);
         scull_trim(dev);
     }
     return 0;
@@ -43,6 +158,7 @@ int scull_open(struct inode *inode, struct file *filp)
 
 int scull_release(struct inode *inode, struct file *filp)
 {
+    //printk(KERN_NOTICE "scull released");
     return 0;
 }
 
