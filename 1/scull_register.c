@@ -206,7 +206,6 @@ static int __init scull_init_module(void)
 
     dev_t dev = 0;
 
-    printk("init\n");
     if (scull_major)
     {
         dev = MKDEV(scull_major, scull_minor);
@@ -236,7 +235,6 @@ static int __init scull_init_module(void)
         scull_setup_cdev(scull_devices + i, i);
     }
     proc_create("scullseq", 0, NULL, &scull_proc_ops);
-    printk(KERN_ALERT "init done\n");
     return 0;
 }
 
