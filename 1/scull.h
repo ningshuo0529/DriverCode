@@ -2,6 +2,7 @@
 #define _SCULL_H_
 
 #include <linux/cdev.h>
+#include <linux/semaphore.h>
 
 #ifndef SCULL_MAJOR
 #define SCULL_MAJOR 0
@@ -24,6 +25,7 @@ int scull_minor = 0;
 int scull_nr_devs = SCULL_NR_DEVS;
 int scull_quantum = SCULL_QUANTUM;
 int scull_qset = SCULL_QSET;
+struct scull_dev * scull_devices;
 
 struct scull_qset
 {
