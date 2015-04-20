@@ -20,12 +20,12 @@
 #define SCULL_QSET  1000
 #endif
 
-int scull_major = SCULL_MAJOR;
-int scull_minor = 0;
-int scull_nr_devs = SCULL_NR_DEVS;
-int scull_quantum = SCULL_QUANTUM;
-int scull_qset = SCULL_QSET;
-struct scull_dev * scull_devices;
+extern int scull_major;
+extern int scull_minor;
+extern int scull_nr_devs;
+extern int scull_quantum;
+extern int scull_qset;
+extern struct scull_dev * scull_devices;
 
 struct scull_qset
 {

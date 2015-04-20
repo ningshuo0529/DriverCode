@@ -9,6 +9,13 @@
 #include "scull.h"
 
 extern struct file_operations scull_proc_ops;
+int scull_major = SCULL_MAJOR;
+int scull_minor = 0;
+int scull_nr_devs = SCULL_NR_DEVS;
+int scull_quantum = SCULL_QUANTUM;
+int scull_qset = SCULL_QSET;
+struct scull_dev * scull_devices;
+
 module_param(scull_major, int, S_IRUGO);
 module_param(scull_minor, int, S_IRUGO);
 module_param(scull_nr_devs, int, S_IRUGO);

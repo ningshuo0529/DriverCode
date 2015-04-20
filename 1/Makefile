@@ -1,5 +1,5 @@
 obj-m := scull.o
-scull-objs := scull.o stat.o
+scull-objs := stat.o scull_register.o
 KERNELDIR :=/lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
 default:
