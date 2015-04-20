@@ -1,7 +1,7 @@
-#include <linux/cdev.h>
-
 #ifndef _SCULL_H_
 #define _SCULL_H_
+
+#include <linux/cdev.h>
 
 #ifndef SCULL_MAJOR
 #define SCULL_MAJOR 0
@@ -18,6 +18,12 @@
 #ifndef SCULL_QSET
 #define SCULL_QSET  1000
 #endif
+
+int scull_major = SCULL_MAJOR;
+int scull_minor = 0;
+int scull_nr_devs = SCULL_NR_DEVS;
+int scull_quantum = SCULL_QUANTUM;
+int scull_qset = SCULL_QSET;
 
 struct scull_qset
 {
